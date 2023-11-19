@@ -3,7 +3,9 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Globalization;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -21,7 +23,7 @@ StringBuilder officeCountry = new StringBuilder();
 decimal priceInUSD = 0;
 DateTime purchaseDate = new DateTime();
 StringBuilder currencyName = new StringBuilder();
-double currencyValue = 0;
+decimal currencyValue = 0;
 StringBuilder currencySymbol = new StringBuilder();
 
 // Array to control the menu flow
@@ -30,6 +32,7 @@ String[] menuFlag = new string[] { "TopMenu", "ProductMenu", "Brand", "Model", "
 int flag = 0;
 int writeOut = 0;
 int count = 0;
+int outputListCount = 0;
 int lifeSpan = 3;
 int exitFlag = menuFlag.Length - 2;
 int price;
@@ -41,17 +44,6 @@ string FirstCharToUpper(string input)
     return Regex.Replace(input, "^[a-z]", c => c.Value.ToUpper());
 }
 
-/*
-// Function to print a string with specific position on the console
-void PrintOut(string str, int posX, int posY)
-{
-    int strLen = str.Length;
-    display.ClearLine(posX, posY);
-    display.SetCursurPos(posX, posY);
-    Console.Write(str);
-    display.SetCursurPos(strLen + 2, posY);
-}
-*/
 // Function to clear input-related variables
 void clearInputVariables()
 {
@@ -60,7 +52,6 @@ void clearInputVariables()
     model.Clear();
     officeCountry.Clear();
     price = 0;
-    lifeSpan = 0;
     currencyName.Clear();
     currencyValue = 0;
     currencySymbol.Clear();
@@ -68,6 +59,7 @@ void clearInputVariables()
     count = 0;
     sb.Clear();
     writeOut = 0;
+    outputListCount = 0;
 }
 
 // Define console colors
@@ -79,11 +71,12 @@ ConsoleColor yellow = ConsoleColor.Yellow;
 
 // List to store currency information for different offices
 List<Currency> officeList = new List<Currency>();
-officeList.Add(new Currency("Sweden", "SEK", 10.5624, "Kr"));
-officeList.Add(new Currency("Great Britain", "GBP", 0.806311, "Pund"));
-officeList.Add(new Currency("Germany", "EUR", 0.921532, "Euro"));
-officeList.Add(new Currency("Japan", "JPN", 151.286, "Yen"));
-officeList.Add(new Currency("Norway", "NOK", 10.8085, "Kr"));
+officeList.Add(new Currency("Sweden", "SEK", Convert.ToDecimal(10.5624), "sv-SE"));
+officeList.Add(new Currency("Great Britain", "GBP", Convert.ToDecimal(0.806311), "en-GB"));
+officeList.Add(new Currency("Germany", "EUR", Convert.ToDecimal(0.921532), "de-DE"));
+officeList.Add(new Currency("Japan", "JPN", Convert.ToDecimal(151.286), "ja-JP"));
+officeList.Add(new Currency("Norway", "NOK", Convert.ToDecimal(10.8085), "nb-NO"));
+officeList.Add(new Currency("USA", "USD", Convert.ToDecimal(1.0), "en-US"));
 
 // List to store product information
 List<Product> productList = new List<Product>();
@@ -101,6 +94,12 @@ while (true)
     {
         display.ShowMenu(blue, "To enter a new product - Follow the steps | to Quit enter [Q/q] [Quit] [Exit]", 0, 0);
         display.ShowMenu(green, "Choose >> [1] - Computer | [2] - Mobile", 0, 1);
+        flag = 1;
+    }
+    if (menuFlag[flag].Equals("TopMenu") && menuFlag[exitFlag].Equals("Exit"))
+    {
+        display.ShowMenu(blue, "If you want to put in more products Press [1] >> Computer or [2] >> Mobile | to Quit enter [Q/q] [Quit] [Exit] Again", 0, 0);
+//        display.ShowMenu(green, "Choose >> [1] - Computer | [2] - Mobile", 0, 1);
         flag = 1;
     }
     else if (menuFlag[flag].Equals("Brand"))
@@ -149,7 +148,7 @@ while (true)
         exitFlag++;
     }
     // Process user input and update program state
-    if (menuFlag[flag].Equals("ProductMenu"))
+    if (menuFlag[flag].Equals("ProductMenu") && !menuFlag[exitFlag].Equals("Exit"))
     {
         if (input.Equals("1"))
         {
@@ -192,7 +191,6 @@ while (true)
             officeCountry.Append(officeList.ElementAt(index - 1).OfficeCountry);
             currencyName.Append(officeList.ElementAt(index - 1).CurrencyName);
             currencyValue = officeList.ElementAt(index - 1).CurrencyValue;
-            currencySymbol.Append(officeList.ElementAt(index - 1).CurrencySymbol);
             sb.Append(" " + officeCountry);
             count = 0;
             flag = 5;
@@ -262,7 +260,7 @@ while (true)
     if (menuFlag[flag].Equals("Done"))
     {
         int ListCount = productList.Count;
-        productList.Add(new Product(product.ToString(), brand.ToString(), model.ToString(), officeCountry.ToString(), Convert.ToDecimal(priceInUSD), purchaseDate, lifeSpan, currencyName.ToString(), Convert.ToDouble(currencyValue), currencySymbol.ToString()));
+        productList.Add(new Product(product.ToString(), brand.ToString(), model.ToString(), officeCountry.ToString(), Convert.ToDecimal(priceInUSD), purchaseDate, lifeSpan, currencyName.ToString(), Convert.ToDecimal(currencyValue), currencySymbol.ToString()));
         if (ListCount < productList.Count)
         {
             display.ShowMenu(green, "Product added successfully", 0, 2);
@@ -273,16 +271,65 @@ while (true)
         else
         {
             display.ShowMenu(red, "Something went wrong when it should be added to List!", 0, 2);
+            Thread.Sleep(milliseconds);
         }
-     }
+    }
     if (menuFlag[exitFlag].Equals("Exit"))
     {
-        display.SetCursurPos(0, 5);
+        Console.Clear();
+        //        display.ClearLine(0, 2);
+        //        display.ClearLine(0, 3);
+        display.SetCursurPos(0, 3);
+
+        List<Product> SortedproductListComputer = productList.OrderBy(Product => Product.ProductName).ThenBy(Product => Product.PurchaseDate).ToList();
+        List<Product> SortedproductListOffice = productList.OrderBy(Product => Product.OfficeCountry).ThenBy(Product => Product.PurchaseDate).ToList();
+
+        display.ShowMenu(green, "List products Sorted by Computer then Purchase date", 0, 2);
+        display.SetCursurPos(0, 3);
         display.ShowCategory();
-        foreach (Product prod in productList)
+        display.SetCursurPos(0, 5);
+        foreach (Product prod in SortedproductListComputer)
+        {
+            prod.Show();
+            outputListCount++;
+        }
+
+        display.ShowMenu(green, "List products Sorted by Office then Purchase date", 0, 6 + outputListCount);
+        display.SetCursurPos(0, 7 + outputListCount);
+        display.ShowCategory();
+        display.SetCursurPos(0, 9 + outputListCount);
+
+        foreach (Product prod in SortedproductListOffice)
         {
             prod.Show();
         }
+
+        display.ShowMenu(green, "Do you want to put in more products >> [Y/N]", 0, 0);
+        
+        do
+        {
+            input.Clear();
+            input.Append(Console.ReadLine());
+
+            if (input.ToString().ToUpper().Equals("Y"))
+            {
+                exitFlag = menuFlag.Length - 2;
+                display.ClearLine(0, 2);
+                clearInputVariables();
+                break;
+            }
+            else if (input.ToString().ToUpper().Equals("N"))
+            { 
+            Environment.Exit(0);
+            }
+            else 
+            {
+                display.ShowMenu(red, "You must write [Y/N] | Try again!", 0, 2);
+                Thread.Sleep(milliseconds);
+                display.ClearLine(0, 2);
+            }
+        }
+        while (true) ;
     }
     input.Clear();
 }
@@ -302,6 +349,12 @@ class Display
         Console.SetCursorPosition(posX, posY);
         Console.Write(new String(' ', Console.BufferWidth));
     }
+    
+    public void ClearOutputOnScreen()
+    { 
+        Console.Clear(); 
+    }
+
 
     // Metods for set the positions
     public void SetCursurPos(int posX, int posY)
@@ -312,8 +365,8 @@ class Display
     public void ShowCategory()
     {
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Product".PadRight(10) + "Brand".PadRight(10) + "Model".PadRight(18) + "Office".PadRight(15) + "Price in USD".PadRight(17) + "Currency".PadRight(10) + "Local price");
-        Console.WriteLine("-------".PadRight(10) + "-----".PadRight(10) + "-----".PadRight(18) + "------".PadRight(15) + "------------".PadRight(17) + "--------".PadRight(10) + "-----------");
+        Console.WriteLine("Product".PadRight(10) + "Brand".PadRight(10) + "Model".PadRight(15) + "Office".PadRight(15) + "Purchase Date".PadRight(14) + "Price in USD".PadRight(17) + "Currency".PadRight(10) + "Local price");
+        Console.WriteLine("-------".PadRight(10) + "-----".PadRight(10) + "-----".PadRight(15) + "------".PadRight(15) + "-------------".PadRight(14) + "------------".PadRight(17) + "--------".PadRight(10) + "-----------");
         Console.ResetColor();
     }
 
@@ -347,32 +400,33 @@ class Currency : Display
     {
     }
 
-    public Currency(string officeCountry, string currencyName, double currencyValue, string currencySymbol)
+    public Currency(string officeCountry, string currencyName, decimal currencyValue, string countryLangTag)
     {
         CurrencyName = currencyName;
         CurrencyValue = currencyValue;
-        CurrencySymbol = currencySymbol;
         OfficeCountry = officeCountry;
+        CountryLangTag = countryLangTag;
     }
 
     public string OfficeCountry { get; set; }
     public string CurrencyName { get; set; }
-    public double CurrencyValue { get; set; }
-    public string CurrencySymbol { get; set; }
+    public decimal CurrencyValue { get; set; }
+    public string CountryLangTag { get; set; }
 
     public string Show()
     {
-        return $"CurrencyName: {CurrencyName} CurrencyValue: {CurrencyValue} Currency Symbol: {CurrencySymbol}";
+        return $"CurrencyName: {CurrencyName} CurrencyValue: {CurrencyValue} Currency Symbol: {CountryLangTag}";
     }
 }
 
 // Asset class representing an asset with additional information
 class Asset : Currency
 {
-     public DateTime EndOfLife { get; set; }
+//    public DateTime EndOfLife { get; set; }
     public int LifeSpan { get; set; }
-    public DateTime ExpireDate1 { get; set; }
-    public DateTime ExpireDate2 { get; set; }
+    public DateTime ExpireDate { get; set; }
+    public DateTime ThreeMonthsBeforeExpireDate { get; set; }
+    public DateTime SixMonthsBeforeExpireDate { get; set; }
     public DateTime PurchaseDate { get; set; }
 
     public DateTime CalculateExireDate(DateTime purchaseDate, int expireAfterMonth)
@@ -383,17 +437,18 @@ class Asset : Currency
 
     public int ExpireLevel()
     {
-        if (DateTime.Compare(DateTime.Now, ExpireDate1) < 0 )
+
+        if (DateTime.Now >= SixMonthsBeforeExpireDate && DateTime.Now < ThreeMonthsBeforeExpireDate)
         {
-            return 0; // Ligger innanför lifespan
+            return 2; // Located within 3 months of the end of the warranty
         }
-        else if (DateTime.Compare(DateTime.Now, ExpireDate2) == -1)
+        else if (DateTime.Now >= ThreeMonthsBeforeExpireDate)
         {
-            return 1; // Ligger efter lifespan men före Expiredate2 6 månader
+            return 1; // Located between 3 and 6 months before the end of the warranty
         }
-        else 
-        { 
-            return 2; // Ligger efter lifespan och efer Expiredate2 6 månader
+        else
+        {
+            return 0; // Located more than 6 months before the end of the warranty or after the end of the warranty
         }
     }
 }
@@ -401,7 +456,7 @@ class Asset : Currency
 
 class Product : Asset
 {
-    public Product(string productName, string brand, string modelName, string officeCountry, decimal price, DateTime purchaseDate, int lifeSpan, string currencyName, double currencyValue, string currencySymbol)
+    public Product(string productName, string brand, string modelName, string officeCountry, decimal price, DateTime purchaseDate, int lifeSpan, string currencyName, decimal currencyValue, string countryLangTag)
     { 
         ProductName = productName;
         Brand = brand;
@@ -412,10 +467,10 @@ class Product : Asset
         LifeSpan = lifeSpan;
         CurrencyName = currencyName;
         CurrencyValue = currencyValue;
-        CurrencySymbol = currencySymbol;
-
-        ExpireDate1 = CalculateExireDate(PurchaseDate.AddDays(-1), 3);
-        ExpireDate2 = CalculateExireDate(PurchaseDate.AddDays(-1), 6);
+        CountryLangTag = countryLangTag;
+        ExpireDate = CalculateExireDate(PurchaseDate, 0);
+        ThreeMonthsBeforeExpireDate = CalculateExireDate(PurchaseDate, -3);
+        SixMonthsBeforeExpireDate = CalculateExireDate(PurchaseDate, -6);
     }
     public string ProductName { get; set; }
     public string Brand { get; set; }
@@ -424,23 +479,23 @@ class Product : Asset
 
     public void Show()
     {
-        string bought = PurchaseDate.ToString("yy-MM-dd");
-        string Expire1 = ExpireDate1.ToString("yy-MM.dd");
-        string Expire2 = ExpireDate2.ToString("yy-MM.dd");
+        string priceUSD = Price.ToString("C2", System.Globalization.CultureInfo.GetCultureInfo("en-us"));
+        string localPrice = (Price * CurrencyValue).ToString("C2", System.Globalization.CultureInfo.GetCultureInfo(CountryLangTag));
+        localPrice = localPrice + " " + CurrencyName;
 
         switch (ExpireLevel())
         {
             case 0:
-                Console.WriteLine($"{ProductName.PadRight(10)}{Brand.PadRight(10)}{ModelName.PadRight(18)}{OfficeCountry.PadRight(15)}{Price.ToString().PadRight(17)}{bought.PadRight(14)}");
+                Console.WriteLine($"{ProductName.PadRight(10)}{Brand.PadRight(10)}{ModelName.PadRight(15)}{OfficeCountry.PadRight(15)}{PurchaseDate.ToString("yyyy-MM-dd").PadRight(14)}{priceUSD.PadRight(17)}{CurrencyName.PadRight(10)}{localPrice}");
                 break;
             case 1:
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"{ProductName.PadRight(10)}{Brand.PadRight(10)}{ModelName.PadRight(18)}{OfficeCountry.PadRight(15)}{Price.ToString().PadRight(17)}{bought.PadRight(14)}");
+                Console.WriteLine($"{ProductName.PadRight(10)}{Brand.PadRight(10)}{ModelName.PadRight(15)}{OfficeCountry.PadRight(15)}{PurchaseDate.ToString("yyyy-MM-dd").PadRight(14)}{priceUSD.PadRight(17)}{CurrencyName.PadRight(10)}{localPrice}");
                 Console.ResetColor();
                 break;
             case 2:
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{ProductName.PadRight(10)}{Brand.PadRight(10)}{ModelName.PadRight(18)}{OfficeCountry.PadRight(15)}{Price.ToString().PadRight(17)}{bought.PadRight(14)}");
+                Console.WriteLine($"{ProductName.PadRight(10)}{Brand.PadRight(10)}{ModelName.PadRight(15)}{OfficeCountry.PadRight(15)}{PurchaseDate.ToString("yyyy-MM-dd").PadRight(14)}{priceUSD.PadRight(17)}{CurrencyName.PadRight(10)}{localPrice}");
                 Console.ResetColor();
                 break;
         }
